@@ -1,0 +1,50 @@
+version: "3.8"
+
+services:
+  pedia-mcp:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: pedia-mcp:latest
+    container_name: pedia-mcp-server
+    restart: unless-stopped
+    ports:
+      - "8001:8001"
+    environment:
+      - PEDIA_API_KEY=${PEDIA_API_KEY}
+      - MCP_TRANSPORT=http
+      - MCP_HOST=0.0.0.0
+      - MCP_PORT=8001
+      - MCP_PATH=/mcp_pedia
+      - PEDIA_CACHE_TTL_SECONDS=60
+    env_file:
+      - .env
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/mcp_pedia/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - pedia-network
+
+  nginx:
+    image: nginx:alpine
+    container_name: pedia-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/conf.d:/etc/nginx/conf.d:ro
+      - ./ssl:/etc/nginx/ssl:ro
+      - /var/log/nginx:/var/log/nginx
+    depends_on:
+      - pedia-mcp
+    networks:
+      - pedia-network
+
+networks:
+  pedia-network:
+    driver: bridge
